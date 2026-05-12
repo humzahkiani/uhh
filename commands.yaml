@@ -1,0 +1,14 @@
+
+
+commands:
+  - cmd: "grep <SEARCH_STRING>"
+    phrases:
+      - "search for / find all occurrences of a string in all sub files/folders"
+  - cmd: "ls"
+    phrases:
+      - "list all files / folders in current directory"
+  - cmd: "rgf"
+    phrases:
+      - "return all files that contain phrase in current directory / folder and subdirectories / subfolders"
+    tags:
+      - alias
