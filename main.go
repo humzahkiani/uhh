@@ -1,3 +1,4 @@
+// Command uhh searches saved shell commands by phrase and prints matches ranked by similarity.
 package main
 
 import (
@@ -36,54 +37,54 @@ func main() {
 		os.Exit(1)
 	}
 
-	search_phrase := args[0]
+	searchPhrase := args[0]
 
-	search_phrase_ranked_command_matches := match_phrase_to_commands_and_rank(search_phrase, commands)
+	searchPhraseRankedCommandMatches := matchPhraseToCommandsAndRank(searchPhrase, commands)
 
-	if len(search_phrase_ranked_command_matches.CommandMatches) == 0 {
-		fmt.Printf("Could not find any stored commands which match '%s'", search_phrase)
+	if len(searchPhraseRankedCommandMatches.CommandMatches) == 0 {
+		fmt.Printf("Could not find any stored commands which match '%s'", searchPhrase)
 		return
 	}
 
-	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", search_phrase)
+	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", searchPhrase)
 
-	output_table_writer := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(output_table_writer, "COMMAND\tMATCH_SCORE")
+	outputTableWriter := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(outputTableWriter, "COMMAND\tMATCH_SCORE")
 
-	for _, match := range search_phrase_ranked_command_matches.CommandMatches {
-		_, _ = fmt.Fprintf(output_table_writer, "%s\t%d\n", match.Command.Cmd, match.MatchScore)
+	for _, match := range searchPhraseRankedCommandMatches.CommandMatches {
+		_, _ = fmt.Fprintf(outputTableWriter, "%s\t%d\n", match.Command.Cmd, match.MatchScore)
 	}
 
-	_ = output_table_writer.Flush()
+	_ = outputTableWriter.Flush()
 }
 
-func match_phrase_to_commands_and_rank(phrase string, commands Commands) SearchPhraseCommandMatches {
-	phrase_tokens := strings.Split(phrase, " ")
+func matchPhraseToCommandsAndRank(phrase string, commands Commands) SearchPhraseCommandMatches {
+	phraseTokens := strings.Split(phrase, " ")
 
 	matches := SearchPhraseCommandMatches{SearchPhrase: phrase}
 
 	for _, command := range commands.Commands {
-		var command_max_match_score int
+		var commandMaxMatchScore int
 
-		for _, cmd_phrase := range command.Phrases {
-			match_score := 0
+		for _, cmdPhrase := range command.Phrases {
+			matchScore := 0
 
-			cmd_tokens := strings.Split(cmd_phrase, " ")
+			cmdTokens := strings.Split(cmdPhrase, " ")
 
-			for _, phrase_token := range phrase_tokens {
-				if slices.Contains(cmd_tokens, phrase_token) {
-					match_score += 1
+			for _, phraseToken := range phraseTokens {
+				if slices.Contains(cmdTokens, phraseToken) {
+					matchScore++
 				}
 			}
-			if match_score == 0 {
+			if matchScore == 0 {
 				continue
 			}
-			command_max_match_score = max(command_max_match_score, match_score)
+			commandMaxMatchScore = max(commandMaxMatchScore, matchScore)
 		}
 
-		if command_max_match_score > 0 {
-			cmd_match := CommandMatch{Command: command, MatchScore: command_max_match_score}
-			matches.CommandMatches = append(matches.CommandMatches, cmd_match)
+		if commandMaxMatchScore > 0 {
+			cmdMatch := CommandMatch{Command: command, MatchScore: commandMaxMatchScore}
+			matches.CommandMatches = append(matches.CommandMatches, cmdMatch)
 		}
 	}
 
