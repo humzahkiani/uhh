@@ -84,8 +84,7 @@ func run() error {
 func matchAndRank(phrase string, commands []Command) CommandMatches {
 	matches := CommandMatches{SearchPhrase: phrase}
 
-	phraseLower := strings.ToLower(phrase)
-	phraseTokens := strings.Split(phraseLower, " ")
+	phraseTokens := strings.Split(strings.ToLower(phrase), " ")
 
 	for _, command := range commands {
 		var commandMaxMatchScore int
