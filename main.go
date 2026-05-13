@@ -71,10 +71,10 @@ func main() {
 }
 
 func matchAndRank(phrase string, commands []Command) CommandMatches {
-	phrase = strings.ToLower(phrase)
-	phraseTokens := strings.Split(phrase, " ")
-
 	matches := CommandMatches{SearchPhrase: phrase}
+
+	phraseLower := strings.ToLower(phrase)
+	phraseTokens := strings.Split(phraseLower, " ")
 
 	for _, command := range commands {
 		var commandMaxMatchScore int
