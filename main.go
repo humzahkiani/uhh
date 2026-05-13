@@ -3,8 +3,8 @@ package main
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strings"
@@ -28,25 +28,37 @@ type CommandMatch struct {
 	MatchScore int
 }
 
+var errNoMatches = errors.New("no matched commands found")
+
 func main() {
+	if err := run(); err != nil {
+		if errors.Is(err, errNoMatches) {
+			os.Exit(2)
+		}
+		fmt.Fprintln(os.Stderr, "uhh:", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	data, err := os.ReadFile("commands.yaml")
 	if err != nil {
-		log.Fatal("Could not find saved commands.")
+		return fmt.Errorf("read commands file: %w", err)
 	}
 
 	var commands []Command
 	err = yaml.Unmarshal(data, &commands)
 	if err != nil {
-		log.Fatalf("Could not parse saved commands: %v", err)
+		return fmt.Errorf("parse saved commands: %w", err)
 	}
 	if len(commands) == 0 {
-		log.Fatal("No saved commands found. Please save a command first in `commands.yaml`.")
+		return errors.New("no saved commands found; add one to `commands.yaml`")
 	}
 
 	args := os.Args[1:]
 
 	if len(args) != 1 {
-		log.Fatal("Must supply exactly one search phrase in quotes")
+		return errors.New("must supply exactly one search phrase in quotes")
 	}
 
 	searchPhrase := args[0]
@@ -54,8 +66,7 @@ func main() {
 	matchedAndRankedCommands := matchAndRank(searchPhrase, commands)
 
 	if len(matchedAndRankedCommands.CommandMatches) == 0 {
-		fmt.Printf("Could not find any saved commands which match '%s'", matchedAndRankedCommands.SearchPhrase)
-		return
+		return errNoMatches
 	}
 
 	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", matchedAndRankedCommands.SearchPhrase)
@@ -67,7 +78,7 @@ func main() {
 		_, _ = fmt.Fprintf(outputTableWriter, "%s\t%d\n", match.Command.Cmd, match.MatchScore)
 	}
 
-	_ = outputTableWriter.Flush()
+	return outputTableWriter.Flush()
 }
 
 func matchAndRank(phrase string, commands []Command) CommandMatches {
@@ -89,9 +100,6 @@ func matchAndRank(phrase string, commands []Command) CommandMatches {
 				if slices.Contains(cmdTokens, phraseToken) {
 					matchScore++
 				}
-			}
-			if matchScore == 0 {
-				continue
 			}
 			commandMaxMatchScore = max(commandMaxMatchScore, matchScore)
 		}
