@@ -4,6 +4,7 @@ package main
 import (
 	"cmp"
 	"fmt"
+	"log"
 	"os"
 	"slices"
 	"strings"
@@ -12,62 +13,75 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+type Command struct {
+	Cmd     string
+	Phrases []string
+}
+
+type CommandMatches struct {
+	SearchPhrase   string
+	CommandMatches []CommandMatch
+}
+
+type CommandMatch struct {
+	Command    Command
+	MatchScore int
+}
+
 func main() {
 	data, err := os.ReadFile("commands.yaml")
 	if err != nil {
-		fmt.Println("Error: Could not find saved commands.")
-		os.Exit(1)
+		log.Fatal("Could not find saved commands.")
 	}
 
-	var commands Commands
+	var commands []Command
 	err = yaml.Unmarshal(data, &commands)
 	if err != nil {
-		fmt.Println("Error: Could not parse saved commands.")
-		os.Exit(1)
+		log.Fatal("Could not parse saved commands.")
 	}
-	if len(commands.Commands) == 0 {
-		fmt.Println("Error: No saved commands available. Please save a command first in comands.yaml.")
-		os.Exit(1)
+	if len(commands) == 0 {
+		log.Fatal("No saved commands available. Please save a command first in `commands.yaml`.")
 	}
 
 	args := os.Args[1:]
 
-	if len(args) == 0 || len(args) > 1 {
-		fmt.Println("Error: Must supply exactly one search phrase in quotes")
-		os.Exit(1)
+	if len(args) != 1 {
+		log.Fatal("Must supply exactly one search phrase in quotes")
 	}
 
 	searchPhrase := args[0]
 
-	searchPhraseRankedCommandMatches := matchPhraseToCommandsAndRank(searchPhrase, commands)
+	matchedAndRankedCommands := matchAndRank(searchPhrase, commands)
 
-	if len(searchPhraseRankedCommandMatches.CommandMatches) == 0 {
-		fmt.Printf("Could not find any stored commands which match '%s'", searchPhrase)
+	if len(matchedAndRankedCommands.CommandMatches) == 0 {
+		fmt.Printf("Could not find any saved commands which match '%s'", matchedAndRankedCommands.SearchPhrase)
 		return
 	}
 
-	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", searchPhrase)
+	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", matchedAndRankedCommands.SearchPhrase)
 
 	outputTableWriter := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(outputTableWriter, "COMMAND\tMATCH_SCORE")
 
-	for _, match := range searchPhraseRankedCommandMatches.CommandMatches {
+	for _, match := range matchedAndRankedCommands.CommandMatches {
 		_, _ = fmt.Fprintf(outputTableWriter, "%s\t%d\n", match.Command.Cmd, match.MatchScore)
 	}
 
 	_ = outputTableWriter.Flush()
 }
 
-func matchPhraseToCommandsAndRank(phrase string, commands Commands) SearchPhraseCommandMatches {
+func matchAndRank(phrase string, commands []Command) CommandMatches {
+	phrase = strings.ToLower(phrase)
 	phraseTokens := strings.Split(phrase, " ")
 
-	matches := SearchPhraseCommandMatches{SearchPhrase: phrase}
+	matches := CommandMatches{SearchPhrase: phrase}
 
-	for _, command := range commands.Commands {
+	for _, command := range commands {
 		var commandMaxMatchScore int
 
 		for _, cmdPhrase := range command.Phrases {
 			matchScore := 0
+			cmdPhrase = strings.ToLower(cmdPhrase)
 
 			cmdTokens := strings.Split(cmdPhrase, " ")
 
@@ -93,24 +107,4 @@ func matchPhraseToCommandsAndRank(phrase string, commands Commands) SearchPhrase
 	})
 
 	return matches
-}
-
-type Command struct {
-	Cmd     string
-	Phrases []string
-	Tags    []string
-}
-
-type Commands struct {
-	Commands []Command
-}
-
-type SearchPhraseCommandMatches struct {
-	SearchPhrase   string
-	CommandMatches []CommandMatch
-}
-
-type CommandMatch struct {
-	Command    Command
-	MatchScore int
 }
