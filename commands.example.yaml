@@ -1,0 +1,119 @@
+- cmd: git log --oneline --graph --decorate --all
+  phrases:
+    - show git history as a graph
+    - visualize branches and commits
+    - git log pretty graph
+
+- cmd: git reset --soft HEAD~1
+  phrases:
+    - undo last commit keep changes staged
+    - soft reset previous commit
+    - uncommit but keep files
+
+- cmd: git stash push -m
+  phrases:
+    - save current changes with a message
+    - stash work in progress
+    - shelve changes named
+
+- cmd: git rebase -i HEAD~5
+  phrases:
+    - interactive rebase last 5 commits
+    - squash recent commits
+    - rewrite recent history
+
+- cmd: find . -type f -name "*.log" -mtime +7 -delete
+  phrases:
+    - delete log files older than a week
+    - clean up old log files
+    - remove stale logs
+
+- cmd: lsof -i :3000
+  phrases:
+    - find what is using port 3000
+    - which process is on port
+    - check port usage
+
+- cmd: kill -9 $(lsof -t -i :3000)
+  phrases:
+    - kill process on port 3000
+    - force kill port
+    - free up a port
+
+- cmd: du -sh * | sort -h
+  phrases:
+    - show folder sizes sorted
+    - which directory is biggest
+    - disk usage by folder
+
+- cmd: tar -czvf archive.tar.gz directory/
+  phrases:
+    - create a compressed archive
+    - tar gzip a folder
+    - bundle directory into tarball
+
+- cmd: tar -xzvf archive.tar.gz
+  phrases:
+    - extract a tar gz file
+    - unzip tarball
+    - decompress archive
+
+- cmd: docker system prune -a --volumes
+  phrases:
+    - clean up docker disk space
+    - remove unused docker images and volumes
+    - free docker storage
+
+- cmd: docker exec -it CONTAINER /bin/sh
+  phrases:
+    - shell into a running container
+    - open terminal in docker
+    - exec into container
+
+- cmd: ssh -L 8080:localhost:80 user@host
+  phrases:
+    - forward remote port to local
+    - ssh tunnel local port
+    - port forwarding through ssh
+
+- cmd: openssl s_client -connect host:443 -showcerts
+  phrases:
+    - inspect tls certificate of a server
+    - check ssl cert chain
+    - view server certificate
+
+- cmd: pbpaste | jq .
+  phrases:
+    - pretty print json from clipboard
+    - format clipboard json
+    - jq the clipboard
+
+- cmd: caffeinate -i -t 3600
+  phrases:
+    - keep mac awake for an hour
+    - prevent sleep temporarily
+    - stay awake mac
+
+- cmd: networksetup -setdnsservers Wi-Fi 1.1.1.1 8.8.8.8
+  phrases:
+    - change dns servers on mac
+    - set custom dns wifi
+    - configure dns
+
+- cmd: dig +short example.com
+  phrases:
+    - quick dns lookup
+    - resolve a domain
+    - get ip for hostname
+
+- cmd: rg --hidden --no-ignore -t go "TODO"
+  phrases:
+    - search for todos in go files
+    - find todo comments
+    - ripgrep todos
+
+- cmd: go test -run TestName -v ./...
+  phrases:
+    - run a single go test verbose
+    - go test by name
+    - run specific test

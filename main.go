@@ -5,7 +5,9 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -28,20 +30,35 @@ type CommandMatch struct {
 	MatchScore int
 }
 
-var errNoMatches = errors.New("no matched commands found")
+var errNoMatches = errors.New("no matches")
 
 func main() {
 	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "uhh:", err)
+
 		if errors.Is(err, errNoMatches) {
 			os.Exit(2)
 		}
-		fmt.Fprintln(os.Stderr, "uhh:", err)
 		os.Exit(1)
 	}
 }
 
 func run() error {
-	data, err := os.ReadFile("commands.yaml")
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("locate home dir: %w", err)
+		}
+		configDir = filepath.Join(home, ".config")
+	}
+	path := filepath.Join(configDir, "uhh", "commands.yaml")
+
+	data, err := os.ReadFile(path)
+
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("no command file found; create one at %s", path)
+	}
 	if err != nil {
 		return fmt.Errorf("read commands file: %w", err)
 	}
@@ -52,7 +69,7 @@ func run() error {
 		return fmt.Errorf("parse saved commands: %w", err)
 	}
 	if len(commands) == 0 {
-		return errors.New("no saved commands found; add one to `commands.yaml`")
+		return fmt.Errorf("no saved commands found; add one to %s", path)
 	}
 
 	args := os.Args[1:]

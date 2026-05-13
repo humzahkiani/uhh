@@ -5,14 +5,15 @@ A personal command discovery tool for those who also possess the memory of a gol
 
 ## Usage
 
-Save commands in `commands.yaml`:
+Save commands in `~/.config/uhh/commands.yaml` (or `$XDG_CONFIG_HOME/uhh/commands.yaml` if set):
 
 ```yaml
-commands:
-  - cmd: "ls"
-    phrases:
-      - "list all files/folders in current directory"
+- cmd: "ls"
+  phrases:
+    - "list all files/folders in current directory"
 ```
+
+See `commands.example.yaml` for a fuller set of examples.
 
 Then search by phrase:
 
