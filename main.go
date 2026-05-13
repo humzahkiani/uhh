@@ -37,10 +37,10 @@ func main() {
 	var commands []Command
 	err = yaml.Unmarshal(data, &commands)
 	if err != nil {
-		log.Fatal("Could not parse saved commands.")
+		log.Fatalf("Could not parse saved commands: %v", err)
 	}
 	if len(commands) == 0 {
-		log.Fatal("No saved commands available. Please save a command first in `commands.yaml`.")
+		log.Fatal("No saved commands found. Please save a command first in `commands.yaml`.")
 	}
 
 	args := os.Args[1:]
