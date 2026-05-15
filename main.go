@@ -16,19 +16,46 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-type Command struct {
+type command struct {
 	Cmd     string
 	Phrases []string
 }
 
-type CommandMatches struct {
-	SearchPhrase   string
-	CommandMatches []CommandMatch
+var (
+	errCommandBlankPhrase = errors.New("command phrase is empty/whitespace-only")
+	errCommandEmptyCmd    = errors.New("command cmd is empty/whitespace-only")
+	errCommandNoPhrases   = errors.New("command has no phrases")
+)
+
+func newCommand(cmd string, phrases []string) (command, error) {
+	cmd = strings.TrimSpace(cmd)
+	if len(cmd) == 0 {
+		return command{}, errCommandEmptyCmd
+	}
+
+	trimmed := make([]string, 0, len(phrases))
+	for _, p := range phrases {
+		p := strings.TrimSpace(p)
+		if len(p) != 0 {
+			trimmed = append(trimmed, p)
+			continue
+		}
+		return command{}, errCommandBlankPhrase
+	}
+	if len(trimmed) == 0 {
+		return command{}, errCommandNoPhrases
+	}
+	return command{Cmd: cmd, Phrases: trimmed}, nil
 }
 
-type CommandMatch struct {
-	Command    Command
-	MatchScore int
+type commandMatches struct {
+	searchPhrase string
+	matches      []commandMatch
+}
+
+type commandMatch struct {
+	command    command
+	matchScore int
 }
 
 var errNoMatches = errors.New("no matches")
@@ -50,7 +77,6 @@ func run() error {
 		return fmt.Errorf("no args provided")
 	}
 
-	// cli subcommand/arg handling
 	switch args[0] {
 	case "save":
 		fs := flag.NewFlagSet("save", flag.ContinueOnError)
@@ -73,69 +99,66 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		return nil
-	default:
+	default: // implicit find command
 		fs := flag.NewFlagSet("find", flag.ContinueOnError)
 		_ = fs.Parse(args[0:])
 		if len(fs.Args()) != 1 {
-			fmt.Println(fs.Args())
 			return errors.New("unexpected no. of positional args; provide exactly one search phrase argument in quotations")
+		}
+		searchPhrase := fs.Args()[0]
+		err := find(searchPhrase)
+		if err != nil {
+			return err
 		}
 	}
 
-	// find command (implicit default)
+	return nil
+}
 
+func find(searchPhrase string) error {
 	savedCommands, err := readSavedCommands()
 	if err != nil {
-		return err
+		return fmt.Errorf("find: %w", err)
 	}
 
 	if len(savedCommands) == 0 {
-		return errors.New("no saved commands found")
+		return errors.New("find: no saved commands found")
 	}
 
-	searchPhrase := args[0]
 	matchedAndRankedCommands := matchAndRank(searchPhrase, savedCommands)
 
-	if len(matchedAndRankedCommands.CommandMatches) == 0 {
+	if len(matchedAndRankedCommands.matches) == 0 {
 		return errNoMatches
 	}
 
-	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", matchedAndRankedCommands.SearchPhrase)
+	fmt.Printf("Commands that match the phrase: '%s' ranked by similarity\n\n", matchedAndRankedCommands.searchPhrase)
 
 	outputTableWriter := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(outputTableWriter, "COMMAND\tMATCH_SCORE")
 
-	for _, match := range matchedAndRankedCommands.CommandMatches {
-		_, _ = fmt.Fprintf(outputTableWriter, "%s\t%d\n", match.Command.Cmd, match.MatchScore)
+	for _, match := range matchedAndRankedCommands.matches {
+		_, _ = fmt.Fprintf(outputTableWriter, "%s\t%d\n", match.command.Cmd, match.matchScore)
 	}
 
 	return outputTableWriter.Flush()
 }
 
-func save(command string, phrases []string) error {
-	if strings.TrimSpace(command) == "" {
-		return errors.New("save: input command is empty/whitespace only")
-	}
-
-	for _, p := range phrases {
-		if strings.TrimSpace(p) == "" {
-			return errors.New("save: one or more phrases is empty/whitespace only")
-		}
-	}
-
+func save(cmd string, phrases []string) error {
 	savedCommands, err := readSavedCommands()
 	if err != nil {
 		return fmt.Errorf("save: %w", err)
 	}
 	for _, c := range savedCommands {
-		if strings.EqualFold(strings.TrimSpace(c.Cmd), strings.TrimSpace(command)) {
+		if strings.EqualFold(strings.TrimSpace(c.Cmd), strings.TrimSpace(cmd)) {
 			return errors.New("save: command already exists")
 		}
 	}
 
-	newCommand := Command{Cmd: command, Phrases: phrases}
-	updatedCommands := append(savedCommands, newCommand)
+	created, err := newCommand(cmd, phrases)
+	if err != nil {
+		return fmt.Errorf("save: create new command: %w", err)
+	}
+	updatedCommands := append(savedCommands, created)
 
 	data, err := yaml.Marshal(updatedCommands)
 	if err != nil {
@@ -151,11 +174,11 @@ func save(command string, phrases []string) error {
 		return fmt.Errorf("save: write commands file: %w", err)
 	}
 
-	fmt.Printf("successfully saved command: '%v'\n", newCommand.Cmd)
+	fmt.Printf("successfully saved command: '%v'\n", created.Cmd)
 	return nil
 }
 
-func readSavedCommands() ([]Command, error) {
+func readSavedCommands() ([]command, error) {
 	path, err := getCommandsFilePath()
 	if err != nil {
 		return nil, fmt.Errorf("read saved commands: %w", err)
@@ -168,12 +191,24 @@ func readSavedCommands() ([]Command, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read saved commands: %w", err)
 	}
-	var commands []Command
-	err = yaml.Unmarshal(data, &commands)
+	var raw []struct {
+		Cmd     string
+		Phrases []string
+	}
+	err = yaml.Unmarshal(data, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("read saved commands: %w", err)
 	}
-	return commands, nil
+
+	saved := make([]command, 0, len(raw))
+	for _, r := range raw {
+		c, err := newCommand(r.Cmd, r.Phrases)
+		if err != nil {
+			return nil, fmt.Errorf("read saved commands: invalid command in file: %w", err)
+		}
+		saved = append(saved, c)
+	}
+	return saved, nil
 }
 
 func getCommandsFilePath() (string, error) {
@@ -190,8 +225,8 @@ func getCommandsFilePath() (string, error) {
 	return path, nil
 }
 
-func matchAndRank(phrase string, commands []Command) CommandMatches {
-	matches := CommandMatches{SearchPhrase: phrase}
+func matchAndRank(phrase string, commands []command) commandMatches {
+	matches := commandMatches{searchPhrase: phrase}
 
 	phraseTokens := strings.Split(strings.ToLower(phrase), " ")
 
@@ -213,13 +248,13 @@ func matchAndRank(phrase string, commands []Command) CommandMatches {
 		}
 
 		if commandMaxMatchScore > 0 {
-			cmdMatch := CommandMatch{Command: command, MatchScore: commandMaxMatchScore}
-			matches.CommandMatches = append(matches.CommandMatches, cmdMatch)
+			cmdMatch := commandMatch{command: command, matchScore: commandMaxMatchScore}
+			matches.matches = append(matches.matches, cmdMatch)
 		}
 	}
 
-	slices.SortFunc(matches.CommandMatches, func(a, b CommandMatch) int {
-		return cmp.Compare(b.MatchScore, a.MatchScore)
+	slices.SortFunc(matches.matches, func(a, b commandMatch) int {
+		return cmp.Compare(b.matchScore, a.matchScore)
 	})
 
 	return matches
